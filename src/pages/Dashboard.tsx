@@ -1,9 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 import { 
   LayoutDashboard, 
   Bell, 
@@ -13,80 +14,83 @@ import {
   AlertTriangle, 
   Eye,
   Grid3X3,
-  Map
+  Map,
+  TrendingUp,
+  Users,
+  Clock,
+  Activity
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import axios from "axios";
+
+interface ZoneData {
+  crowd_level: string;
+  last_updated: string;
+}
 
 const Dashboard = () => {
   const [viewMode, setViewMode] = useState<'cards' | 'heatmap'>('cards');
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
+  const [zonesData, setZonesData] = useState<Record<string, ZoneData>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const zones = [
-    { 
-      id: 'A', 
-      name: 'Zone A', 
-      crowdLevel: 'Low', 
-      color: 'green', 
-      lastUpdated: '2 min ago',
-      count: 45,
-      capacity: 200 
-    },
-    { 
-      id: 'B', 
-      name: 'Zone B', 
-      crowdLevel: 'Moderate', 
-      color: 'yellow', 
-      lastUpdated: '1 min ago',
-      count: 120,
-      capacity: 180 
-    },
-    { 
-      id: 'C', 
-      name: 'Zone C', 
-      crowdLevel: 'High', 
-      color: 'orange', 
-      lastUpdated: '30 sec ago',
-      count: 165,
-      capacity: 200 
-    },
-    { 
-      id: 'D', 
-      name: 'Zone D', 
-      crowdLevel: 'Critical', 
-      color: 'red', 
-      lastUpdated: '15 sec ago',
-      count: 190,
-      capacity: 180 
-    },
-    { 
-      id: 'E', 
-      name: 'Zone E', 
-      crowdLevel: 'Moderate', 
-      color: 'yellow', 
-      lastUpdated: '3 min ago',
-      count: 95,
-      capacity: 150 
-    },
-    { 
-      id: 'F', 
-      name: 'Zone F', 
-      crowdLevel: 'Low', 
-      color: 'green', 
-      lastUpdated: '1 min ago',
-      count: 32,
-      capacity: 120 
-    },
-  ];
+  const API_URL = "https://drishti-ai-ee130-default-rtdb.firebaseio.com/zones.json";
 
-  const getCrowdBadgeVariant = (level: string) => {
-    switch (level) {
-      case 'Low': return 'default';
-      case 'Moderate': return 'secondary';
-      case 'High': return 'destructive';
-      case 'Critical': return 'destructive';
-      default: return 'default';
+  const fetchZoneData = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(API_URL);
+      setZonesData(response.data || {});
+      setError(null);
+      
+      // Check for critical zones and show warnings
+      Object.entries(response.data || {}).forEach(([zoneName, data]: [string, any]) => {
+        if (data?.crowd_level === 'Critical' || data?.crowd_level === 'High') {
+          toast({
+            title: `⚠️ Alert: ${zoneName.toUpperCase()}`,
+            description: `Crowd level is ${data.crowd_level}. Immediate attention required!`,
+            variant: data.crowd_level === 'Critical' ? 'destructive' : 'default',
+          });
+        }
+      });
+    } catch (err) {
+      setError('Failed to fetch zone data');
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchZoneData();
+    // Refresh data every 30 seconds
+    const interval = setInterval(fetchZoneData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const zones = ['A', 'B', 'C', 'D', 'E', 'F'].map(id => {
+    const zoneKey = `zone${id}`;
+    const data = zonesData[zoneKey];
+    return {
+      id,
+      name: `Zone ${id}`,
+      crowdLevel: data?.crowd_level || 'No data available',
+      lastUpdated: data?.last_updated || 'Never',
+      color: getCrowdColor(data?.crowd_level || 'Low')
+    };
+  });
+
+  function getCrowdColor(level: string) {
+    switch (level) {
+      case 'Low': return 'green';
+      case 'Moderate': return 'yellow';
+      case 'High': return 'orange';
+      case 'Critical': return 'red';
+      default: return 'gray';
+    }
+  }
 
   const getCrowdBadgeColor = (color: string) => {
     switch (color) {
@@ -101,9 +105,32 @@ const Dashboard = () => {
   const triggerEmergency = () => {
     const confirmed = window.confirm('Are you sure you want to trigger the Emergency Protocol? This will alert all security personnel and initiate evacuation procedures.');
     if (confirmed) {
-      alert('Emergency Protocol Activated! All security teams have been notified.');
+      toast({
+        title: "🚨 Emergency Protocol Activated!",
+        description: "All security teams have been notified.",
+        variant: "destructive",
+      });
     }
   };
+
+  const handleViewDetails = (zone: any) => {
+    setSelectedZone(zone.id);
+  };
+
+  const closeDetails = () => {
+    setSelectedZone(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading live data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -123,6 +150,10 @@ const Dashboard = () => {
             </div>
             
             <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm" onClick={fetchZoneData}>
+                <Activity className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
               <Button variant="ghost" size="sm">
                 <Bell className="w-4 h-4" />
               </Button>
@@ -131,9 +162,11 @@ const Dashboard = () => {
                   <User className="w-4 h-4" />
                 </AvatarFallback>
               </Avatar>
-              <Button variant="outline" size="sm">
-                Logout
-              </Button>
+              <Link to="/">
+                <Button variant="outline" size="sm">
+                  Logout
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -180,6 +213,7 @@ const Dashboard = () => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Live Event Monitoring Dashboard</h1>
                 <p className="text-gray-600">Real-time crowd monitoring across all zones</p>
+                {error && <p className="text-red-600 mt-2">⚠️ {error}</p>}
               </div>
               
               <div className="flex items-center space-x-4 mt-4 md:mt-0">
@@ -215,7 +249,12 @@ const Dashboard = () => {
             {/* Zone Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {zones.map((zone) => (
-                <Card key={zone.id} className="hover:shadow-lg transition-shadow duration-200 border-slate-200">
+                <Card 
+                  key={zone.id} 
+                  className={`hover:shadow-lg transition-all duration-200 border-slate-200 ${
+                    zone.crowdLevel === 'Critical' ? 'animate-pulse shadow-red-200 shadow-lg' : ''
+                  }`}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg font-semibold text-gray-900">
@@ -228,28 +267,17 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Occupancy:</span>
-                        <span className="font-medium">{zone.count}/{zone.capacity}</span>
-                      </div>
-                      
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            zone.color === 'green' ? 'bg-green-500' :
-                            zone.color === 'yellow' ? 'bg-yellow-500' :
-                            zone.color === 'orange' ? 'bg-orange-500' :
-                            'bg-red-500'
-                          }`}
-                          style={{ width: `${(zone.count / zone.capacity) * 100}%` }}
-                        />
-                      </div>
-                      
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
                           Updated: {zone.lastUpdated}
                         </span>
-                        <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          onClick={() => handleViewDetails(zone)}
+                        >
                           View Details
                         </Button>
                       </div>
@@ -264,8 +292,10 @@ const Dashboard = () => {
               <Card className="bg-blue-50 border-blue-200">
                 <CardContent className="p-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-700">687</div>
-                    <div className="text-sm text-blue-600">Total Attendees</div>
+                    <div className="text-2xl font-bold text-blue-700">
+                      {zones.filter(z => z.crowdLevel !== 'No data available').length}
+                    </div>
+                    <div className="text-sm text-blue-600">Active Zones</div>
                   </div>
                 </CardContent>
               </Card>
@@ -273,7 +303,9 @@ const Dashboard = () => {
               <Card className="bg-green-50 border-green-200">
                 <CardContent className="p-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-700">2</div>
+                    <div className="text-2xl font-bold text-green-700">
+                      {zones.filter(z => z.crowdLevel === 'Low').length}
+                    </div>
                     <div className="text-sm text-green-600">Safe Zones</div>
                   </div>
                 </CardContent>
@@ -282,7 +314,9 @@ const Dashboard = () => {
               <Card className="bg-yellow-50 border-yellow-200">
                 <CardContent className="p-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-700">2</div>
+                    <div className="text-2xl font-bold text-yellow-700">
+                      {zones.filter(z => z.crowdLevel === 'Moderate').length}
+                    </div>
                     <div className="text-sm text-yellow-600">Moderate Zones</div>
                   </div>
                 </CardContent>
@@ -291,7 +325,9 @@ const Dashboard = () => {
               <Card className="bg-red-50 border-red-200">
                 <CardContent className="p-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-red-700">2</div>
+                    <div className="text-2xl font-bold text-red-700">
+                      {zones.filter(z => z.crowdLevel === 'High' || z.crowdLevel === 'Critical').length}
+                    </div>
                     <div className="text-sm text-red-600">Alert Zones</div>
                   </div>
                 </CardContent>
@@ -300,6 +336,68 @@ const Dashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Zone Details Modal */}
+      {selectedZone && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Zone {selectedZone} Analytics</h2>
+                <Button variant="outline" onClick={closeDetails}>✕</Button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-5 h-5 text-blue-500" />
+                      <div>
+                        <div className="text-sm text-gray-600">Current Level</div>
+                        <div className="text-xl font-bold">
+                          {zones.find(z => z.id === selectedZone)?.crowdLevel}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="w-5 h-5 text-green-500" />
+                      <div>
+                        <div className="text-sm text-gray-600">Trend</div>
+                        <div className="text-xl font-bold">Stable</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <h3 className="font-semibold mb-2">Real-time Insights</h3>
+                  <ul className="text-sm space-y-1 text-gray-600">
+                    <li>• Last updated: {zones.find(z => z.id === selectedZone)?.lastUpdated}</li>
+                    <li>• Monitoring status: Active</li>
+                    <li>• Alert threshold: High density detected</li>
+                  </ul>
+                </div>
+                
+                {zones.find(z => z.id === selectedZone)?.crowdLevel === 'Critical' && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <h3 className="font-semibold text-red-800 mb-2">🚨 Critical Alert</h3>
+                    <p className="text-sm text-red-700">
+                      This zone has reached critical capacity. Immediate action required to prevent overcrowding.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
