@@ -18,35 +18,60 @@ import {
   TrendingUp,
   Users,
   Clock,
-  Activity
+  Activity,
+  Phone,
+  Shield,
+  Truck,
+  Heart
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import EmergencyActions from "@/components/EmergencyActions";
+import EmergencyLogs from "@/components/EmergencyLogs";
+import SettingsPanel from "@/components/SettingsPanel";
 
 interface ZoneData {
   crowd_level: string;
   last_updated: string;
 }
 
+interface EmergencyLog {
+  id: string;
+  timestamp: string;
+  zone: string;
+  action: string;
+  status: string;
+  level: string;
+}
+
 const Dashboard = () => {
   const [viewMode, setViewMode] = useState<'cards' | 'heatmap'>('cards');
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
+  const [showEmergencyActions, setShowEmergencyActions] = useState<string | null>(null);
+  const [showEmergencyLogs, setShowEmergencyLogs] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [emergencyLogs, setEmergencyLogs] = useState<EmergencyLog[]>([]);
   const [zonesData, setZonesData] = useState<Record<string, ZoneData>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const API_URL = "https://drishti-ai-ee130-default-rtdb.firebaseio.com/zones.json";
+  // Mock data for demonstration
+  const mockData = {
+    zoneA: { crowd_level: 'Low', last_updated: '2025-07-03 10:05:32' },
+    zoneB: { crowd_level: 'Moderate', last_updated: '2025-07-03 10:04:15' },
+    zoneC: { crowd_level: 'High', last_updated: '2025-07-03 10:03:45' },
+    zoneD: { crowd_level: 'Critical', last_updated: '2025-07-03 10:02:10' },
+    zoneE: { crowd_level: 'Low', last_updated: '2025-07-03 10:01:55' },
+    zoneF: { crowd_level: 'Moderate', last_updated: '2025-07-03 10:00:30' }
+  };
 
   const fetchZoneData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(API_URL);
-      setZonesData(response.data || {});
-      setError(null);
+      // Use mock data instead of API call
+      setZonesData(mockData);
       
       // Check for critical zones and show warnings
-      Object.entries(response.data || {}).forEach(([zoneName, data]: [string, any]) => {
+      Object.entries(mockData).forEach(([zoneName, data]: [string, any]) => {
         if (data?.crowd_level === 'Critical' || data?.crowd_level === 'High') {
           toast({
             title: `⚠️ Alert: ${zoneName.toUpperCase()}`,
@@ -56,8 +81,7 @@ const Dashboard = () => {
         }
       });
     } catch (err) {
-      setError('Failed to fetch zone data');
-      console.error('Error fetching data:', err);
+      console.error('Error with mock data:', err);
     } finally {
       setLoading(false);
     }
@@ -105,6 +129,16 @@ const Dashboard = () => {
   const triggerEmergency = () => {
     const confirmed = window.confirm('Are you sure you want to trigger the Emergency Protocol? This will alert all security personnel and initiate evacuation procedures.');
     if (confirmed) {
+      const newLog: EmergencyLog = {
+        id: Date.now().toString(),
+        timestamp: new Date().toLocaleString(),
+        zone: 'All Zones',
+        action: 'Emergency Protocol Activated',
+        status: 'Active',
+        level: 'Critical'
+      };
+      setEmergencyLogs(prev => [newLog, ...prev]);
+      
       toast({
         title: "🚨 Emergency Protocol Activated!",
         description: "All security teams have been notified.",
@@ -117,8 +151,38 @@ const Dashboard = () => {
     setSelectedZone(zone.id);
   };
 
+  const handleTakeAction = (zone: any) => {
+    setShowEmergencyActions(zone.id);
+  };
+
   const closeDetails = () => {
     setSelectedZone(null);
+  };
+
+  const closeEmergencyActions = () => {
+    setShowEmergencyActions(null);
+  };
+
+  const handleEmergencyAction = (action: string, zoneId: string) => {
+    const zone = zones.find(z => z.id === zoneId);
+    const newLog: EmergencyLog = {
+      id: Date.now().toString(),
+      timestamp: new Date().toLocaleString(),
+      zone: `Zone ${zoneId}`,
+      action: action,
+      status: 'Dispatched',
+      level: zone?.crowdLevel || 'Unknown'
+    };
+    
+    setEmergencyLogs(prev => [newLog, ...prev]);
+    
+    toast({
+      title: `🚨 ${action} Dispatched`,
+      description: `Emergency response sent to Zone ${zoneId}`,
+      variant: "default",
+    });
+    
+    closeEmergencyActions();
   };
 
   if (loading) {
@@ -190,13 +254,21 @@ const Dashboard = () => {
                 </Button>
               </li>
               <li>
-                <Button variant="ghost" className="w-full justify-start text-gray-600 hover:text-gray-900">
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start text-gray-600 hover:text-gray-900"
+                  onClick={() => setShowEmergencyLogs(true)}
+                >
                   <FileText className="w-4 h-4 mr-3" />
                   Emergency Logs
                 </Button>
               </li>
               <li>
-                <Button variant="ghost" className="w-full justify-start text-gray-600 hover:text-gray-900">
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start text-gray-600 hover:text-gray-900"
+                  onClick={() => setShowSettings(true)}
+                >
                   <Settings className="w-4 h-4 mr-3" />
                   Settings
                 </Button>
@@ -213,7 +285,6 @@ const Dashboard = () => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Live Event Monitoring Dashboard</h1>
                 <p className="text-gray-600">Real-time crowd monitoring across all zones</p>
-                {error && <p className="text-red-600 mt-2">⚠️ {error}</p>}
               </div>
               
               <div className="flex items-center space-x-4 mt-4 md:mt-0">
@@ -272,14 +343,26 @@ const Dashboard = () => {
                           <Clock className="w-3 h-3 mr-1" />
                           Updated: {zone.lastUpdated}
                         </span>
+                      </div>
+                      <div className="flex space-x-2">
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50 flex-1"
                           onClick={() => handleViewDetails(zone)}
                         >
                           View Details
                         </Button>
+                        {(zone.crowdLevel === 'High' || zone.crowdLevel === 'Critical') && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-red-600 border-red-200 hover:bg-red-50 flex-1"
+                            onClick={() => handleTakeAction(zone)}
+                          >
+                            Take Action
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -397,6 +480,30 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Emergency Actions Modal */}
+      {showEmergencyActions && (
+        <EmergencyActions 
+          zoneId={showEmergencyActions}
+          onClose={closeEmergencyActions}
+          onAction={handleEmergencyAction}
+        />
+      )}
+
+      {/* Emergency Logs Modal */}
+      {showEmergencyLogs && (
+        <EmergencyLogs 
+          logs={emergencyLogs}
+          onClose={() => setShowEmergencyLogs(false)}
+        />
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsPanel 
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </div>
   );
