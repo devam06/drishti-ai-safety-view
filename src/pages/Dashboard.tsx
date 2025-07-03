@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +27,7 @@ import { Link } from "react-router-dom";
 import EmergencyActions from "@/components/EmergencyActions";
 import EmergencyLogs from "@/components/EmergencyLogs";
 import SettingsPanel from "@/components/SettingsPanel";
+import ZoneAnalytics from "@/components/ZoneAnalytics";
 
 interface ZoneData {
   crowd_level: string;
@@ -187,19 +187,19 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading live data...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading live data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-900">
       {/* Top Navbar */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <header className="bg-white dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -207,27 +207,27 @@ const Dashboard = () => {
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
                   <Eye className="w-5 h-5 text-white" />
                 </div>
-                <h1 className="text-xl font-bold text-gray-900">DrishtiAI</h1>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">DrishtiAI</h1>
               </div>
-              <div className="hidden md:block h-6 w-px bg-slate-300" />
-              <h2 className="hidden md:block text-lg font-semibold text-gray-700">Live Event Monitoring Dashboard</h2>
+              <div className="hidden md:block h-6 w-px bg-slate-300 dark:bg-gray-600" />
+              <h2 className="hidden md:block text-lg font-semibold text-gray-700 dark:text-gray-300">Live Event Monitoring Dashboard</h2>
             </div>
             
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" onClick={fetchZoneData}>
+              <Button variant="ghost" size="sm" onClick={fetchZoneData} className="dark:text-gray-300 dark:hover:text-white">
                 <Activity className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="dark:text-gray-300 dark:hover:text-white">
                 <Bell className="w-4 h-4" />
               </Button>
               <Avatar>
-                <AvatarFallback>
+                <AvatarFallback className="dark:bg-gray-700 dark:text-gray-300">
                   <User className="w-4 h-4" />
                 </AvatarFallback>
               </Avatar>
               <Link to="/">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
                   Logout
                 </Button>
               </Link>
@@ -238,17 +238,17 @@ const Dashboard = () => {
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className="hidden md:block w-64 bg-white border-r border-slate-200 min-h-screen">
+        <aside className="hidden md:block w-64 bg-white dark:bg-gray-800 border-r border-slate-200 dark:border-gray-700 min-h-screen">
           <nav className="p-4">
             <ul className="space-y-2">
               <li>
-                <Button variant="ghost" className="w-full justify-start bg-blue-50 text-blue-700">
+                <Button variant="ghost" className="w-full justify-start bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
                   <LayoutDashboard className="w-4 h-4 mr-3" />
                   Dashboard
                 </Button>
               </li>
               <li>
-                <Button variant="ghost" className="w-full justify-start text-gray-600 hover:text-gray-900">
+                <Button variant="ghost" className="w-full justify-start text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
                   <Bell className="w-4 h-4 mr-3" />
                   Alerts
                 </Button>
@@ -256,7 +256,7 @@ const Dashboard = () => {
               <li>
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-start text-gray-600 hover:text-gray-900"
+                  className="w-full justify-start text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                   onClick={() => setShowEmergencyLogs(true)}
                 >
                   <FileText className="w-4 h-4 mr-3" />
@@ -266,7 +266,7 @@ const Dashboard = () => {
               <li>
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-start text-gray-600 hover:text-gray-900"
+                  className="w-full justify-start text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                   onClick={() => setShowSettings(true)}
                 >
                   <Settings className="w-4 h-4 mr-3" />
@@ -283,16 +283,17 @@ const Dashboard = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Live Event Monitoring Dashboard</h1>
-                <p className="text-gray-600">Real-time crowd monitoring across all zones</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Live Event Monitoring Dashboard</h1>
+                <p className="text-gray-600 dark:text-gray-300">Real-time crowd monitoring across all zones</p>
               </div>
               
               <div className="flex items-center space-x-4 mt-4 md:mt-0">
-                <div className="flex items-center space-x-2 bg-white rounded-lg border border-slate-200 p-1">
+                <div className="flex items-center space-x-2 bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-700 p-1">
                   <Button
                     variant={viewMode === 'cards' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('cards')}
+                    className="dark:text-gray-300"
                   >
                     <Grid3X3 className="w-4 h-4 mr-2" />
                     Cards
@@ -301,6 +302,7 @@ const Dashboard = () => {
                     variant={viewMode === 'heatmap' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('heatmap')}
+                    className="dark:text-gray-300"
                   >
                     <Map className="w-4 h-4 mr-2" />
                     Heatmap
@@ -322,13 +324,13 @@ const Dashboard = () => {
               {zones.map((zone) => (
                 <Card 
                   key={zone.id} 
-                  className={`hover:shadow-lg transition-all duration-200 border-slate-200 ${
-                    zone.crowdLevel === 'Critical' ? 'animate-pulse shadow-red-200 shadow-lg' : ''
+                  className={`hover:shadow-lg transition-all duration-200 border-slate-200 dark:border-gray-700 dark:bg-gray-800 ${
+                    zone.crowdLevel === 'Critical' ? 'animate-pulse shadow-red-200 dark:shadow-red-900/50 shadow-lg' : ''
                   }`}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-semibold text-gray-900">
+                      <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
                         {zone.name}
                       </CardTitle>
                       <Badge className={getCrowdBadgeColor(zone.color)}>
@@ -339,7 +341,7 @@ const Dashboard = () => {
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500 flex items-center">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                           <Clock className="w-3 h-3 mr-1" />
                           Updated: {zone.lastUpdated}
                         </span>
@@ -348,7 +350,7 @@ const Dashboard = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="text-blue-600 border-blue-200 hover:bg-blue-50 flex-1"
+                          className="text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex-1"
                           onClick={() => handleViewDetails(zone)}
                         >
                           View Details
@@ -357,7 +359,7 @@ const Dashboard = () => {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="text-red-600 border-red-200 hover:bg-red-50 flex-1"
+                            className="text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 flex-1"
                             onClick={() => handleTakeAction(zone)}
                           >
                             Take Action
@@ -372,46 +374,46 @@ const Dashboard = () => {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="bg-blue-50 border-blue-200">
+              <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
                 <CardContent className="p-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-700">
+                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                       {zones.filter(z => z.crowdLevel !== 'No data available').length}
                     </div>
-                    <div className="text-sm text-blue-600">Active Zones</div>
+                    <div className="text-sm text-blue-600 dark:text-blue-400">Active Zones</div>
                   </div>
                 </CardContent>
               </Card>
               
-              <Card className="bg-green-50 border-green-200">
+              <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
                 <CardContent className="p-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-700">
+                    <div className="text-2xl font-bold text-green-700 dark:text-green-300">
                       {zones.filter(z => z.crowdLevel === 'Low').length}
                     </div>
-                    <div className="text-sm text-green-600">Safe Zones</div>
+                    <div className="text-sm text-green-600 dark:text-green-400">Safe Zones</div>
                   </div>
                 </CardContent>
               </Card>
               
-              <Card className="bg-yellow-50 border-yellow-200">
+              <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
                 <CardContent className="p-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-700">
+                    <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
                       {zones.filter(z => z.crowdLevel === 'Moderate').length}
                     </div>
-                    <div className="text-sm text-yellow-600">Moderate Zones</div>
+                    <div className="text-sm text-yellow-600 dark:text-yellow-400">Moderate Zones</div>
                   </div>
                 </CardContent>
               </Card>
               
-              <Card className="bg-red-50 border-red-200">
+              <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
                 <CardContent className="p-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-red-700">
+                    <div className="text-2xl font-bold text-red-700 dark:text-red-300">
                       {zones.filter(z => z.crowdLevel === 'High' || z.crowdLevel === 'Critical').length}
                     </div>
-                    <div className="text-sm text-red-600">Alert Zones</div>
+                    <div className="text-sm text-red-600 dark:text-red-400">Alert Zones</div>
                   </div>
                 </CardContent>
               </Card>
@@ -420,66 +422,12 @@ const Dashboard = () => {
         </main>
       </div>
 
-      {/* Zone Details Modal */}
+      {/* Zone Analytics Modal */}
       {selectedZone && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Zone {selectedZone} Analytics</h2>
-                <Button variant="outline" onClick={closeDetails}>✕</Button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-5 h-5 text-blue-500" />
-                      <div>
-                        <div className="text-sm text-gray-600">Current Level</div>
-                        <div className="text-xl font-bold">
-                          {zones.find(z => z.id === selectedZone)?.crowdLevel}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <TrendingUp className="w-5 h-5 text-green-500" />
-                      <div>
-                        <div className="text-sm text-gray-600">Trend</div>
-                        <div className="text-xl font-bold">Stable</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <h3 className="font-semibold mb-2">Real-time Insights</h3>
-                  <ul className="text-sm space-y-1 text-gray-600">
-                    <li>• Last updated: {zones.find(z => z.id === selectedZone)?.lastUpdated}</li>
-                    <li>• Monitoring status: Active</li>
-                    <li>• Alert threshold: High density detected</li>
-                  </ul>
-                </div>
-                
-                {zones.find(z => z.id === selectedZone)?.crowdLevel === 'Critical' && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <h3 className="font-semibold text-red-800 mb-2">🚨 Critical Alert</h3>
-                    <p className="text-sm text-red-700">
-                      This zone has reached critical capacity. Immediate action required to prevent overcrowding.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ZoneAnalytics 
+          zone={zones.find(z => z.id === selectedZone)!}
+          onClose={closeDetails}
+        />
       )}
 
       {/* Emergency Actions Modal */}

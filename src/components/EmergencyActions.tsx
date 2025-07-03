@@ -76,21 +76,21 @@ const EmergencyActions = ({ zoneId, onClose, onAction }: EmergencyActionsProps) 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-red-600">Emergency Response - Zone {zoneId}</h2>
-              <p className="text-gray-600">Select appropriate emergency action</p>
+              <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">Emergency Response - Zone {zoneId}</h2>
+              <p className="text-gray-600 dark:text-gray-300">Select appropriate emergency action</p>
             </div>
-            <Button variant="outline" onClick={onClose}>✕</Button>
+            <Button variant="outline" onClick={onClose} className="dark:border-gray-600 dark:text-gray-200">✕</Button>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {actions.map((actionItem, index) => (
               <Card 
                 key={index}
-                className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${getColorClasses(actionItem.color)}`}
+                className={`cursor-pointer transition-all duration-200 hover:shadow-lg dark:border-gray-600 ${getColorClasses(actionItem.color)}`}
                 onClick={() => onAction(actionItem.action, zoneId)}
               >
                 <CardHeader className="pb-3">
@@ -116,12 +116,12 @@ const EmergencyActions = ({ zoneId, onClose, onAction }: EmergencyActionsProps) 
             ))}
           </div>
           
-          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <div className="flex items-center space-x-2 mb-2">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              <h3 className="font-semibold text-red-800">Critical Zone Alert</h3>
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <h3 className="font-semibold text-red-800 dark:text-red-200">Critical Zone Alert</h3>
             </div>
-            <p className="text-sm text-red-700">
+            <p className="text-sm text-red-700 dark:text-red-300">
               Zone {zoneId} requires immediate attention. Multiple emergency services may be needed for effective response.
             </p>
           </div>
