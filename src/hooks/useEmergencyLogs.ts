@@ -1,16 +1,16 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
-interface EmergencyLog {
+export interface EmergencyLog {
   id: string;
-  zone_id: string;
+  zone_id: string | null;
   action_type: string;
-  description: string;
-  timestamp: string;
-  status: string;
+  description: string | null;
+  user_id: string | null;
+  timestamp: string | null;
+  status: string | null;
   resolved_at: string | null;
   zones?: {
     zone: string;
@@ -20,94 +20,88 @@ interface EmergencyLog {
 export const useEmergencyLogs = () => {
   const [logs, setLogs] = useState<EmergencyLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const fetchLogs = async () => {
     try {
-      // Use raw query to work with current types
       const { data, error } = await supabase
-        .rpc('get_emergency_logs_with_zones');
+        .from('emergency_logs')
+        .select(`
+          *,
+          zones:zone_id (
+            zone
+          )
+        `)
+        .order('timestamp', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching emergency logs:', error);
-        // Fallback to basic query without joins
-        const { data: basicData, error: basicError } = await (supabase as any)
-          .from('emergency_logs')
-          .select('*')
-          .order('timestamp', { ascending: false })
-          .limit(50);
-
-        if (basicError) throw basicError;
-        setLogs(basicData || []);
-      } else {
-        setLogs(data || []);
-      }
+      if (error) throw error;
+      
+      setLogs(data || []);
     } catch (error) {
       console.error('Error fetching emergency logs:', error);
-      setLogs([]);
+      toast({
+        title: "Error loading logs",
+        description: "Failed to fetch emergency logs from database.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const createLog = async (zoneId: string, actionType: string, description?: string) => {
-    if (!user) return;
-
+  const createLog = async (zoneId: string, actionType: string, description: string) => {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('emergency_logs')
         .insert({
-          zone_id: zoneId,
+          zone_id: zoneId || null,
           action_type: actionType,
           description: description,
-          user_id: user.id
+          user_id: (await supabase.auth.getUser()).data.user?.id || null,
         });
 
       if (error) throw error;
-
-      toast({
-        title: "Emergency Action Logged",
-        description: `${actionType} has been dispatched and logged.`,
-      });
-
-      // Refresh logs after creating
+      
+      // Refetch logs to get the latest data
       await fetchLogs();
+      
+      toast({
+        title: "Emergency Log Created",
+        description: "Emergency action has been logged successfully.",
+      });
     } catch (error) {
       console.error('Error creating emergency log:', error);
       toast({
-        title: "Logging Failed",
-        description: "Failed to log emergency action.",
+        title: "Failed to Create Log",
+        description: "Failed to create emergency log.",
         variant: "destructive",
       });
     }
   };
 
   useEffect(() => {
-    if (user) {
-      fetchLogs();
+    fetchLogs();
 
-      // Set up real-time subscription
-      const channel = supabase
-        .channel('emergency-logs-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'emergency_logs'
-          },
-          () => {
-            fetchLogs(); // Refetch logs when new log is added
-          }
-        )
-        .subscribe();
+    // Set up real-time subscription for emergency logs
+    const channel = supabase
+      .channel('emergency-logs-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'emergency_logs'
+        },
+        () => {
+          fetchLogs();
+        }
+      )
+      .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [user]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return {
     logs,

@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   Users,
   TrendingUp,
-  Shield
+  Shield,
+  Plus
 } from "lucide-react";
 import { useRealTimeZones } from "@/hooks/useRealTimeZones";
 import { useToast } from "@/hooks/use-toast";
@@ -21,9 +22,12 @@ interface AdminCapacityManagerProps {
 }
 
 const AdminCapacityManager = ({ onClose }: AdminCapacityManagerProps) => {
-  const { zones, updateZone, loading } = useRealTimeZones();
+  const { zones, updateZone, createZone, loading } = useRealTimeZones();
   const [capacityUpdates, setCapacityUpdates] = useState<Record<string, number>>({});
   const [countUpdates, setCountUpdates] = useState<Record<string, number>>({});
+  const [showAddZone, setShowAddZone] = useState(false);
+  const [newZoneName, setNewZoneName] = useState('');
+  const [newZoneCapacity, setNewZoneCapacity] = useState(1000);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -64,6 +68,31 @@ const AdminCapacityManager = ({ onClose }: AdminCapacityManagerProps) => {
     });
   };
 
+  const handleCreateZone = async () => {
+    if (!newZoneName.trim()) {
+      toast({
+        title: "Invalid Zone Name",
+        description: "Please enter a valid zone name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newZoneCapacity <= 0) {
+      toast({
+        title: "Invalid Capacity",
+        description: "Capacity must be greater than 0.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await createZone(newZoneName.trim(), newZoneCapacity);
+    setNewZoneName('');
+    setNewZoneCapacity(1000);
+    setShowAddZone(false);
+  };
+
   const getCapacityPercentage = (count: number, capacity: number) => {
     return capacity > 0 ? Math.round((count / capacity) * 100) : 0;
   };
@@ -84,8 +113,8 @@ const AdminCapacityManager = ({ onClose }: AdminCapacityManagerProps) => {
 
   const getCrowdBadgeColor = (level: string) => {
     switch (level) {
-      case 'critical': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
+      case 'critical': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 animate-pulse';
+      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 animate-pulse';
       case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
       case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
@@ -111,12 +140,82 @@ const AdminCapacityManager = ({ onClose }: AdminCapacityManagerProps) => {
             <div className="flex items-center space-x-3">
               <Settings className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Zone Capacity Management</h2>
-                <p className="text-gray-600 dark:text-gray-300">Update zone capacities and current counts</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Zone Management</h2>
+                <p className="text-gray-600 dark:text-gray-300">Manage zone capacities and add new zones</p>
               </div>
             </div>
-            <Button variant="outline" onClick={onClose} className="dark:border-gray-600 dark:text-gray-200">✕</Button>
+            <div className="flex items-center space-x-2">
+              <Button 
+                onClick={() => setShowAddZone(true)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Zone
+              </Button>
+              <Button variant="outline" onClick={onClose} className="dark:border-gray-600 dark:text-gray-200">✕</Button>
+            </div>
           </div>
+
+          {/* Add Zone Form */}
+          {showAddZone && (
+            <Card className="mb-6 border-green-200 dark:border-green-800">
+              <CardHeader>
+                <CardTitle className="text-green-700 dark:text-green-300">Add New Zone</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="zoneName" className="text-sm font-medium dark:text-gray-300">
+                      Zone Name
+                    </Label>
+                    <Input
+                      id="zoneName"
+                      type="text"
+                      placeholder="Enter zone name"
+                      value={newZoneName}
+                      onChange={(e) => setNewZoneName(e.target.value)}
+                      className="dark:bg-gray-600 dark:border-gray-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="zoneCapacity" className="text-sm font-medium dark:text-gray-300">
+                      Zone Capacity
+                    </Label>
+                    <Input
+                      id="zoneCapacity"
+                      type="number"
+                      min="1"
+                      value={newZoneCapacity}
+                      onChange={(e) => setNewZoneCapacity(parseInt(e.target.value) || 1000)}
+                      className="dark:bg-gray-600 dark:border-gray-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Button
+                    onClick={handleCreateZone}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Zone
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddZone(false);
+                      setNewZoneName('');
+                      setNewZoneCapacity(1000);
+                    }}
+                    className="dark:border-gray-600 dark:text-gray-200"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {zones.map((zone) => {
@@ -226,7 +325,8 @@ const AdminCapacityManager = ({ onClose }: AdminCapacityManagerProps) => {
               <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">Admin Notice</h3>
             </div>
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              Changes to zone capacities and counts will trigger automatic crowd level calculations. Zones at 80%+ capacity are marked as "high", and 95%+ as "critical". All changes are logged and synced in real-time.
+              Crowd levels are automatically calculated: 80%+ capacity = High (blinking), 95%+ capacity = Critical (blinking). 
+              All changes are logged and synced in real-time across all connected devices.
             </p>
           </div>
         </div>
