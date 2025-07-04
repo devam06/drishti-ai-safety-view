@@ -25,12 +25,11 @@ export const useEmergencyLogs = () => {
 
   const fetchLogs = async () => {
     try {
-      // Query emergency_logs directly since types may not be updated yet
       const { data, error } = await supabase
-        .from('emergency_logs' as any)
+        .from('emergency_logs')
         .select(`
           *,
-          zones!emergency_logs_zone_id_fkey (zone)
+          zones (zone)
         `)
         .order('timestamp', { ascending: false })
         .limit(50);
@@ -50,7 +49,7 @@ export const useEmergencyLogs = () => {
 
     try {
       const { error } = await supabase
-        .from('emergency_logs' as any)
+        .from('emergency_logs')
         .insert({
           zone_id: zoneId,
           action_type: actionType,

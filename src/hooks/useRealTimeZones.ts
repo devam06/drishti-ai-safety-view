@@ -33,9 +33,9 @@ export const useRealTimeZones = () => {
         zone: zone.zone,
         crowd_level: zone.crowd_level || 'low',
         last_updated: zone.last_updated || new Date().toISOString(),
-        capacity: zone.Capacity || 1000, // Note: column name is 'Capacity' in current schema
-        current_count: 0, // Default since this field may not exist yet
-        status: 'active' // Default status
+        capacity: zone.Capacity || 1000,
+        current_count: zone.current_count || 0,
+        status: zone.status || 'active'
       }));
       
       setZones(mappedZones);

@@ -20,11 +20,15 @@ import {
   Map,
   Clock,
   Activity,
-  LogOut
+  LogOut,
+  Shield,
+  Users,
+  TrendingUp
 } from "lucide-react";
-import EmergencyActions from "@/components/EmergencyActions";
-import EmergencyLogs from "@/components/EmergencyLogs";
-import SettingsPanel from "@/components/SettingsPanel";
+import EnhancedEmergencyActions from "@/components/EnhancedEmergencyActions";
+import EnhancedEmergencyLogs from "@/components/EnhancedEmergencyLogs";
+import AdminCapacityManager from "@/components/AdminCapacityManager";
+import InteractiveHeatmap from "@/components/InteractiveHeatmap";
 import ZoneAnalytics from "@/components/ZoneAnalytics";
 
 const Dashboard = () => {
@@ -33,6 +37,8 @@ const Dashboard = () => {
   const [showEmergencyActions, setShowEmergencyActions] = useState<string | null>(null);
   const [showEmergencyLogs, setShowEmergencyLogs] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [criticalAlerts, setCriticalAlerts] = useState<string[]>([]);
   const { user, signOut } = useAuth();
   const { zones, loading } = useRealTimeZones();
   const { createLog } = useEmergencyLogs();
@@ -41,13 +47,54 @@ const Dashboard = () => {
   const processedZones = zones.map(zone => ({
     id: zone.id,
     name: `Zone ${zone.zone}`,
-    crowdLevel: zone.crowd_level || 'Low',
+    zone: zone.zone,
+    crowdLevel: zone.crowd_level || 'low',
     lastUpdated: zone.last_updated || 'Never',
     capacity: zone.capacity || 1000,
-    currentCount: zone.current_count || 0,
+    current_count: zone.current_count || 0,
     status: zone.status || 'active',
-    color: getCrowdColor(zone.crowd_level || 'low')
+    color: getCrowdColor(zone.crowd_level || 'low'),
+    crowd_level: zone.crowd_level || 'low'
   }));
+
+  // Monitor for critical zones
+  useEffect(() => {
+    const newCriticalAlerts = processedZones
+      .filter(zone => zone.crowd_level === 'critical')
+      .map(zone => zone.id);
+    
+    // Check for new critical zones
+    const newAlerts = newCriticalAlerts.filter(id => !criticalAlerts.includes(id));
+    if (newAlerts.length > 0) {
+      newAlerts.forEach(zoneId => {
+        const zone = processedZones.find(z => z.id === zoneId);
+        if (zone) {
+          // Browser notification for critical alerts
+          if (Notification.permission === 'granted') {
+            new Notification(`🚨 Critical Alert: ${zone.name}`, {
+              body: 'Zone has reached critical capacity! Immediate attention required.',
+              icon: '/favicon.ico'
+            });
+          }
+          
+          toast({
+            title: `🚨 CRITICAL ALERT: ${zone.name}`,
+            description: "Zone capacity is critical! Take immediate action.",
+            variant: "destructive",
+          });
+        }
+      });
+    }
+    
+    setCriticalAlerts(newCriticalAlerts);
+  }, [processedZones, criticalAlerts, toast]);
+
+  // Request notification permission
+  useEffect(() => {
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   function getCrowdColor(level: string) {
     switch (level.toLowerCase()) {
@@ -61,18 +108,17 @@ const Dashboard = () => {
 
   const getCrowdBadgeColor = (color: string) => {
     switch (color) {
-      case 'green': return 'bg-green-100 text-green-800 hover:bg-green-200';
-      case 'yellow': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
-      case 'orange': return 'bg-orange-100 text-orange-800 hover:bg-orange-200';
-      case 'red': return 'bg-red-100 text-red-800 hover:bg-red-200';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'green': return 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400';
+      case 'yellow': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400';
+      case 'orange': return 'bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400';
+      case 'red': return 'bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 
   const triggerEmergency = async () => {
     const confirmed = window.confirm('Are you sure you want to trigger the Emergency Protocol? This will alert all security personnel and initiate evacuation procedures.');
     if (confirmed) {
-      // Create emergency log for all zones
       await createLog('', 'Emergency Protocol Activated', 'Global emergency protocol initiated by dashboard operator');
       
       toast({
@@ -93,13 +139,11 @@ const Dashboard = () => {
 
   const handleEmergencyAction = async (action: string, zoneId: string) => {
     const zone = processedZones.find(z => z.id === zoneId);
-    
-    // Create emergency log in database
-    await createLog(zoneId, action, `Emergency response for Zone ${zone?.name}: ${action}`);
+    await createLog(zoneId, action, `Emergency response for ${zone?.name}: ${action}`);
     
     toast({
-      title: `🚨 ${action}`,
-      description: `Emergency response sent to Zone ${zone?.name}`,
+      title: `🚨 ${action} Dispatched`,
+      description: `Emergency response sent to ${zone?.name}`,
       variant: "default",
     });
     
@@ -112,6 +156,10 @@ const Dashboard = () => {
       title: "Signed Out",
       description: "You have been signed out successfully.",
     });
+  };
+
+  const getCapacityPercentage = (count: number, capacity: number) => {
+    return capacity > 0 ? Math.round((count / capacity) * 100) : 0;
   };
 
   if (loading) {
@@ -147,9 +195,25 @@ const Dashboard = () => {
                 <Activity className="w-4 h-4 mr-2" />
                 Live
               </Button>
-              <Button variant="ghost" size="sm" className="dark:text-gray-300 dark:hover:text-white">
-                <Bell className="w-4 h-4" />
-              </Button>
+              
+              {/* Critical Alert Bell */}
+              <div className="relative">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className={`dark:text-gray-300 dark:hover:text-white ${
+                    criticalAlerts.length > 0 ? 'animate-pulse text-red-600 dark:text-red-400' : ''
+                  }`}
+                >
+                  <Bell className="w-4 h-4" />
+                  {criticalAlerts.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
+                      {criticalAlerts.length}
+                    </span>
+                  )}
+                </Button>
+              </div>
+              
               <div className="text-sm text-gray-600 dark:text-gray-300">
                 {user?.email}
               </div>
@@ -182,6 +246,11 @@ const Dashboard = () => {
                 <Button variant="ghost" className="w-full justify-start text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
                   <Bell className="w-4 h-4 mr-3" />
                   Alerts
+                  {criticalAlerts.length > 0 && (
+                    <Badge className="ml-auto bg-red-500 text-white animate-pulse">
+                      {criticalAlerts.length}
+                    </Badge>
+                  )}
                 </Button>
               </li>
               <li>
@@ -200,8 +269,8 @@ const Dashboard = () => {
                   className="w-full justify-start text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                   onClick={() => setShowSettings(true)}
                 >
-                  <Settings className="w-4 h-4 mr-3" />
-                  Settings
+                  <Shield className="w-4 h-4 mr-3" />
+                  Admin Panel
                 </Button>
               </li>
             </ul>
@@ -232,7 +301,7 @@ const Dashboard = () => {
                   <Button
                     variant={viewMode === 'heatmap' ? 'default' : 'ghost'}
                     size="sm"
-                    onClick={() => setViewMode('heatmap')}
+                    onClick={() => setShowHeatmap(true)}
                     className="dark:text-gray-300"
                   >
                     <Map className="w-4 h-4 mr-2" />
@@ -252,63 +321,94 @@ const Dashboard = () => {
 
             {/* Zone Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {processedZones.map((zone) => (
-                <Card 
-                  key={zone.id} 
-                  className={`hover:shadow-lg transition-all duration-200 border-slate-200 dark:border-gray-700 dark:bg-gray-800 ${
-                    zone.crowdLevel === 'critical' ? 'animate-pulse shadow-red-200 dark:shadow-red-900/50 shadow-lg' : ''
-                  }`}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {zone.name}
-                      </CardTitle>
-                      <Badge className={getCrowdBadgeColor(zone.color)}>
-                        {zone.crowdLevel}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 dark:text-gray-400">Capacity:</span>
-                        <span className="font-medium">{zone.currentCount}/{zone.capacity}</span>
+              {processedZones.map((zone) => {
+                const capacityPercentage = getCapacityPercentage(zone.current_count, zone.capacity);
+                const isCritical = zone.crowdLevel === 'critical';
+                const isHigh = zone.crowdLevel === 'high';
+                
+                return (
+                  <Card 
+                    key={zone.id} 
+                    className={`hover:shadow-lg transition-all duration-200 border-slate-200 dark:border-gray-700 dark:bg-gray-800 ${
+                      isCritical ? 'animate-pulse shadow-red-200 dark:shadow-red-900/50 shadow-lg border-red-300 dark:border-red-600' : 
+                      isHigh ? 'shadow-orange-200 dark:shadow-orange-900/50 border-orange-300 dark:border-orange-600' : ''
+                    }`}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+                          {zone.name}
+                        </CardTitle>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getCrowdBadgeColor(zone.color)}>
+                            {zone.crowdLevel}
+                          </Badge>
+                          {isCritical && (
+                            <AlertTriangle className="w-5 h-5 text-red-500 animate-bounce" />
+                          )}
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Updated: {new Date(zone.lastUpdated).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex-1"
-                          onClick={() => handleViewDetails(zone)}
-                        >
-                          View Details
-                        </Button>
-                        {(zone.crowdLevel === 'high' || zone.crowdLevel === 'critical') && (
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-500 dark:text-gray-400">Capacity:</span>
+                          <span className={`font-medium ${
+                            capacityPercentage >= 95 ? 'text-red-600 dark:text-red-400' :
+                            capacityPercentage >= 80 ? 'text-orange-600 dark:text-orange-400' :
+                            'text-gray-900 dark:text-white'
+                          }`}>
+                            {zone.current_count}/{zone.capacity} ({capacityPercentage}%)
+                          </span>
+                        </div>
+                        
+                        {/* Capacity Progress Bar */}
+                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              capacityPercentage >= 95 ? 'bg-red-500' :
+                              capacityPercentage >= 80 ? 'bg-orange-500' :
+                              capacityPercentage >= 50 ? 'bg-yellow-500' : 'bg-green-500'
+                            }`}
+                            style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
+                          />
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Updated: {new Date(zone.lastUpdated).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex-1"
+                            onClick={() => handleViewDetails(zone)}
+                          >
+                            View Details
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
                             className="text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 flex-1"
                             onClick={() => handleTakeAction(zone)}
                           >
-                            Take Action
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Emergency
                           </Button>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
                 <CardContent className="p-4">
                   <div className="text-center">
@@ -324,7 +424,7 @@ const Dashboard = () => {
                 <CardContent className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-                      {processedZones.filter(z => z.crowdLevel === 'Low').length}
+                      {processedZones.filter(z => z.crowdLevel === 'low').length}
                     </div>
                     <div className="text-sm text-green-600 dark:text-green-400">Safe Zones</div>
                   </div>
@@ -342,13 +442,26 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
               
-              <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+              <Card className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
+                <CardContent className="p-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                      {processedZones.filter(z => z.crowdLevel === 'high').length}
+                    </div>
+                    <div className="text-sm text-orange-600 dark:text-orange-400">High Alert Zones</div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className={`bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 ${
+                processedZones.filter(z => z.crowdLevel === 'critical').length > 0 ? 'animate-pulse' : ''
+              }`}>
                 <CardContent className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-700 dark:text-red-300">
-                      {processedZones.filter(z => z.crowdLevel === 'high' || z.crowdLevel === 'critical').length}
+                      {processedZones.filter(z => z.crowdLevel === 'critical').length}
                     </div>
-                    <div className="text-sm text-red-600 dark:text-red-400">Alert Zones</div>
+                    <div className="text-sm text-red-600 dark:text-red-400">Critical Zones</div>
                   </div>
                 </CardContent>
               </Card>
@@ -365,27 +478,37 @@ const Dashboard = () => {
         />
       )}
 
-      {/* Emergency Actions Modal */}
+      {/* Enhanced Emergency Actions Modal */}
       {showEmergencyActions && (
-        <EmergencyActions 
+        <EnhancedEmergencyActions 
           zoneId={showEmergencyActions}
+          zoneName={processedZones.find(z => z.id === showEmergencyActions)?.name || ''}
           onClose={() => setShowEmergencyActions(null)}
           onAction={handleEmergencyAction}
         />
       )}
 
-      {/* Emergency Logs Modal */}
+      {/* Enhanced Emergency Logs Modal */}
       {showEmergencyLogs && (
-        <EmergencyLogs 
-          logs={[]}
+        <EnhancedEmergencyLogs 
           onClose={() => setShowEmergencyLogs(false)}
         />
       )}
 
-      {/* Settings Modal */}
+      {/* Admin Capacity Manager */}
       {showSettings && (
-        <SettingsPanel 
+        <AdminCapacityManager 
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {/* Interactive Heatmap */}
+      {showHeatmap && (
+        <InteractiveHeatmap 
+          zones={processedZones}
+          onZoneClick={handleViewDetails}
+          onEmergencyAction={handleTakeAction}
+          onClose={() => setShowHeatmap(false)}
         />
       )}
     </div>
