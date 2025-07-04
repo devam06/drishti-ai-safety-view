@@ -87,12 +87,22 @@ export const useRealTimeZones = () => {
 
   const updateZone = async (zoneId: string, updates: Partial<Zone>) => {
     try {
+      // Map the updates to match database column names
+      const dbUpdates: any = {};
+      if (updates.capacity !== undefined) dbUpdates.Capacity = updates.capacity;
+      if (updates.current_count !== undefined) dbUpdates.current_count = updates.current_count;
+      if (updates.crowd_level !== undefined) dbUpdates.crowd_level = updates.crowd_level;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      
       const { error } = await supabase
         .from('zones')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', zoneId);
 
       if (error) throw error;
+      
+      // Refetch zones to get the latest data
+      await fetchZones();
       
       toast({
         title: "Zone Updated",
