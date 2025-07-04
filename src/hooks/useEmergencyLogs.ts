@@ -25,20 +25,27 @@ export const useEmergencyLogs = () => {
 
   const fetchLogs = async () => {
     try {
+      // Use raw query to work with current types
       const { data, error } = await supabase
-        .from('emergency_logs')
-        .select(`
-          *,
-          zones (zone)
-        `)
-        .order('timestamp', { ascending: false })
-        .limit(50);
+        .rpc('get_emergency_logs_with_zones');
 
-      if (error) throw error;
-      
-      setLogs(data || []);
+      if (error) {
+        console.error('Error fetching emergency logs:', error);
+        // Fallback to basic query without joins
+        const { data: basicData, error: basicError } = await (supabase as any)
+          .from('emergency_logs')
+          .select('*')
+          .order('timestamp', { ascending: false })
+          .limit(50);
+
+        if (basicError) throw basicError;
+        setLogs(basicData || []);
+      } else {
+        setLogs(data || []);
+      }
     } catch (error) {
       console.error('Error fetching emergency logs:', error);
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -48,7 +55,7 @@ export const useEmergencyLogs = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('emergency_logs')
         .insert({
           zone_id: zoneId,
@@ -63,6 +70,9 @@ export const useEmergencyLogs = () => {
         title: "Emergency Action Logged",
         description: `${actionType} has been dispatched and logged.`,
       });
+
+      // Refresh logs after creating
+      await fetchLogs();
     } catch (error) {
       console.error('Error creating emergency log:', error);
       toast({

@@ -9,26 +9,135 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      crowd_history: {
+        Row: {
+          capacity_percentage: number | null
+          crowd_count: number | null
+          crowd_level: string
+          id: string
+          timestamp: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          capacity_percentage?: number | null
+          crowd_count?: number | null
+          crowd_level: string
+          id?: string
+          timestamp?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          capacity_percentage?: number | null
+          crowd_count?: number | null
+          crowd_level?: string
+          id?: string
+          timestamp?: string | null
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crowd_history_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emergency_logs: {
+        Row: {
+          action_type: string
+          description: string | null
+          id: string
+          resolved_at: string | null
+          status: string | null
+          timestamp: string | null
+          user_id: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          action_type: string
+          description?: string | null
+          id?: string
+          resolved_at?: string | null
+          status?: string | null
+          timestamp?: string | null
+          user_id?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          description?: string | null
+          id?: string
+          resolved_at?: string | null
+          status?: string | null
+          timestamp?: string | null
+          user_id?: string | null
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_logs_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       zones: {
         Row: {
           Capacity: number | null
           crowd_level: string | null
+          current_count: number | null
           id: string
           last_updated: string | null
+          status: string | null
           zone: string
         }
         Insert: {
           Capacity?: number | null
           crowd_level?: string | null
+          current_count?: number | null
           id?: string
           last_updated?: string | null
+          status?: string | null
           zone: string
         }
         Update: {
           Capacity?: number | null
           crowd_level?: string | null
+          current_count?: number | null
           id?: string
           last_updated?: string | null
+          status?: string | null
           zone?: string
         }
         Relationships: []

@@ -33,9 +33,9 @@ export const useRealTimeZones = () => {
         zone: zone.zone,
         crowd_level: zone.crowd_level || 'low',
         last_updated: zone.last_updated || new Date().toISOString(),
-        capacity: zone.Capacity || 1000,
-        current_count: zone.current_count || 0,
-        status: zone.status || 'active'
+        capacity: (zone as any).Capacity || (zone as any).capacity || 1000,
+        current_count: (zone as any).current_count || 0,
+        status: (zone as any).status || 'active'
       }));
       
       setZones(mappedZones);
@@ -94,7 +94,7 @@ export const useRealTimeZones = () => {
       if (updates.crowd_level !== undefined) dbUpdates.crowd_level = updates.crowd_level;
       if (updates.status !== undefined) dbUpdates.status = updates.status;
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('zones')
         .update(dbUpdates)
         .eq('id', zoneId);
