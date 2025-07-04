@@ -27,7 +27,18 @@ export const useRealTimeZones = () => {
 
       if (error) throw error;
       
-      setZones(data || []);
+      // Map the data to ensure all required fields are present with defaults
+      const mappedZones = (data || []).map(zone => ({
+        id: zone.id,
+        zone: zone.zone,
+        crowd_level: zone.crowd_level || 'low',
+        last_updated: zone.last_updated || new Date().toISOString(),
+        capacity: zone.Capacity || 1000, // Note: column name is 'Capacity' in current schema
+        current_count: 0, // Default since this field may not exist yet
+        status: 'active' // Default status
+      }));
+      
+      setZones(mappedZones);
     } catch (error) {
       console.error('Error fetching zones:', error);
       toast({
@@ -58,7 +69,7 @@ export const useRealTimeZones = () => {
           fetchZones(); // Refetch all zones when any change occurs
           
           // Show toast for critical alerts
-          if (payload.eventType === 'UPDATE' && payload.new.crowd_level === 'critical') {
+          if (payload.eventType === 'UPDATE' && payload.new?.crowd_level === 'critical') {
             toast({
               title: `🚨 Critical Alert: Zone ${payload.new.zone}`,
               description: "Immediate attention required!",

@@ -11,18 +11,21 @@ export type Database = {
     Tables: {
       zones: {
         Row: {
+          Capacity: number | null
           crowd_level: string | null
           id: string
           last_updated: string | null
           zone: string
         }
         Insert: {
+          Capacity?: number | null
           crowd_level?: string | null
           id?: string
           last_updated?: string | null
           zone: string
         }
         Update: {
+          Capacity?: number | null
           crowd_level?: string | null
           id?: string
           last_updated?: string | null
