@@ -1,9 +1,13 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useRealTimeZones } from "@/hooks/useRealTimeZones";
+import { useEmergencyLogs } from "@/hooks/useEmergencyLogs";
 import { 
   LayoutDashboard, 
   Bell, 
@@ -14,34 +18,14 @@ import {
   Eye,
   Grid3X3,
   Map,
-  TrendingUp,
-  Users,
   Clock,
   Activity,
-  Phone,
-  Shield,
-  Truck,
-  Heart
+  LogOut
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import EmergencyActions from "@/components/EmergencyActions";
 import EmergencyLogs from "@/components/EmergencyLogs";
 import SettingsPanel from "@/components/SettingsPanel";
 import ZoneAnalytics from "@/components/ZoneAnalytics";
-
-interface ZoneData {
-  crowd_level: string;
-  last_updated: string;
-}
-
-interface EmergencyLog {
-  id: string;
-  timestamp: string;
-  zone: string;
-  action: string;
-  status: string;
-  level: string;
-}
 
 const Dashboard = () => {
   const [viewMode, setViewMode] = useState<'cards' | 'heatmap'>('cards');
@@ -49,69 +33,28 @@ const Dashboard = () => {
   const [showEmergencyActions, setShowEmergencyActions] = useState<string | null>(null);
   const [showEmergencyLogs, setShowEmergencyLogs] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [emergencyLogs, setEmergencyLogs] = useState<EmergencyLog[]>([]);
-  const [zonesData, setZonesData] = useState<Record<string, ZoneData>>({});
-  const [loading, setLoading] = useState(true);
+  const { user, signOut } = useAuth();
+  const { zones, loading } = useRealTimeZones();
+  const { createLog } = useEmergencyLogs();
   const { toast } = useToast();
 
-  // Mock data for demonstration
-  const mockData = {
-    zoneA: { crowd_level: 'Low', last_updated: '2025-07-03 10:05:32' },
-    zoneB: { crowd_level: 'Moderate', last_updated: '2025-07-03 10:04:15' },
-    zoneC: { crowd_level: 'High', last_updated: '2025-07-03 10:03:45' },
-    zoneD: { crowd_level: 'Critical', last_updated: '2025-07-03 10:02:10' },
-    zoneE: { crowd_level: 'Low', last_updated: '2025-07-03 10:01:55' },
-    zoneF: { crowd_level: 'Moderate', last_updated: '2025-07-03 10:00:30' }
-  };
-
-  const fetchZoneData = async () => {
-    try {
-      setLoading(true);
-      // Use mock data instead of API call
-      setZonesData(mockData);
-      
-      // Check for critical zones and show warnings
-      Object.entries(mockData).forEach(([zoneName, data]: [string, any]) => {
-        if (data?.crowd_level === 'Critical' || data?.crowd_level === 'High') {
-          toast({
-            title: `⚠️ Alert: ${zoneName.toUpperCase()}`,
-            description: `Crowd level is ${data.crowd_level}. Immediate attention required!`,
-            variant: data.crowd_level === 'Critical' ? 'destructive' : 'default',
-          });
-        }
-      });
-    } catch (err) {
-      console.error('Error with mock data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchZoneData();
-    // Refresh data every 30 seconds
-    const interval = setInterval(fetchZoneData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const zones = ['A', 'B', 'C', 'D', 'E', 'F'].map(id => {
-    const zoneKey = `zone${id}`;
-    const data = zonesData[zoneKey];
-    return {
-      id,
-      name: `Zone ${id}`,
-      crowdLevel: data?.crowd_level || 'No data available',
-      lastUpdated: data?.last_updated || 'Never',
-      color: getCrowdColor(data?.crowd_level || 'Low')
-    };
-  });
+  const processedZones = zones.map(zone => ({
+    id: zone.id,
+    name: `Zone ${zone.zone}`,
+    crowdLevel: zone.crowd_level || 'Low',
+    lastUpdated: zone.last_updated || 'Never',
+    capacity: zone.capacity || 1000,
+    currentCount: zone.current_count || 0,
+    status: zone.status || 'active',
+    color: getCrowdColor(zone.crowd_level || 'low')
+  }));
 
   function getCrowdColor(level: string) {
-    switch (level) {
-      case 'Low': return 'green';
-      case 'Moderate': return 'yellow';
-      case 'High': return 'orange';
-      case 'Critical': return 'red';
+    switch (level.toLowerCase()) {
+      case 'low': return 'green';
+      case 'medium': return 'yellow';
+      case 'high': return 'orange';
+      case 'critical': return 'red';
       default: return 'gray';
     }
   }
@@ -126,18 +69,11 @@ const Dashboard = () => {
     }
   };
 
-  const triggerEmergency = () => {
+  const triggerEmergency = async () => {
     const confirmed = window.confirm('Are you sure you want to trigger the Emergency Protocol? This will alert all security personnel and initiate evacuation procedures.');
     if (confirmed) {
-      const newLog: EmergencyLog = {
-        id: Date.now().toString(),
-        timestamp: new Date().toLocaleString(),
-        zone: 'All Zones',
-        action: 'Emergency Protocol Activated',
-        status: 'Active',
-        level: 'Critical'
-      };
-      setEmergencyLogs(prev => [newLog, ...prev]);
+      // Create emergency log for all zones
+      await createLog('', 'Emergency Protocol Activated', 'Global emergency protocol initiated by dashboard operator');
       
       toast({
         title: "🚨 Emergency Protocol Activated!",
@@ -155,34 +91,27 @@ const Dashboard = () => {
     setShowEmergencyActions(zone.id);
   };
 
-  const closeDetails = () => {
-    setSelectedZone(null);
-  };
-
-  const closeEmergencyActions = () => {
-    setShowEmergencyActions(null);
-  };
-
-  const handleEmergencyAction = (action: string, zoneId: string) => {
-    const zone = zones.find(z => z.id === zoneId);
-    const newLog: EmergencyLog = {
-      id: Date.now().toString(),
-      timestamp: new Date().toLocaleString(),
-      zone: `Zone ${zoneId}`,
-      action: action,
-      status: 'Dispatched',
-      level: zone?.crowdLevel || 'Unknown'
-    };
+  const handleEmergencyAction = async (action: string, zoneId: string) => {
+    const zone = processedZones.find(z => z.id === zoneId);
     
-    setEmergencyLogs(prev => [newLog, ...prev]);
+    // Create emergency log in database
+    await createLog(zoneId, action, `Emergency response for Zone ${zone?.name}: ${action}`);
     
     toast({
-      title: `🚨 ${action} Dispatched`,
-      description: `Emergency response sent to Zone ${zoneId}`,
+      title: `🚨 ${action}`,
+      description: `Emergency response sent to Zone ${zone?.name}`,
       variant: "default",
     });
     
-    closeEmergencyActions();
+    setShowEmergencyActions(null);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Signed Out",
+      description: "You have been signed out successfully.",
+    });
   };
 
   if (loading) {
@@ -214,23 +143,25 @@ const Dashboard = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" onClick={fetchZoneData} className="dark:text-gray-300 dark:hover:text-white">
+              <Button variant="ghost" size="sm" className="dark:text-gray-300 dark:hover:text-white">
                 <Activity className="w-4 h-4 mr-2" />
-                Refresh
+                Live
               </Button>
               <Button variant="ghost" size="sm" className="dark:text-gray-300 dark:hover:text-white">
                 <Bell className="w-4 h-4" />
               </Button>
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {user?.email}
+              </div>
               <Avatar>
                 <AvatarFallback className="dark:bg-gray-700 dark:text-gray-300">
                   <User className="w-4 h-4" />
                 </AvatarFallback>
               </Avatar>
-              <Link to="/">
-                <Button variant="outline" size="sm" className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
-                  Logout
-                </Button>
-              </Link>
+              <Button variant="outline" size="sm" onClick={handleSignOut} className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
           </div>
         </div>
@@ -321,11 +252,11 @@ const Dashboard = () => {
 
             {/* Zone Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {zones.map((zone) => (
+              {processedZones.map((zone) => (
                 <Card 
                   key={zone.id} 
                   className={`hover:shadow-lg transition-all duration-200 border-slate-200 dark:border-gray-700 dark:bg-gray-800 ${
-                    zone.crowdLevel === 'Critical' ? 'animate-pulse shadow-red-200 dark:shadow-red-900/50 shadow-lg' : ''
+                    zone.crowdLevel === 'critical' ? 'animate-pulse shadow-red-200 dark:shadow-red-900/50 shadow-lg' : ''
                   }`}
                 >
                   <CardHeader className="pb-3">
@@ -340,10 +271,14 @@ const Dashboard = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Capacity:</span>
+                        <span className="font-medium">{zone.currentCount}/{zone.capacity}</span>
+                      </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                           <Clock className="w-3 h-3 mr-1" />
-                          Updated: {zone.lastUpdated}
+                          Updated: {new Date(zone.lastUpdated).toLocaleTimeString()}
                         </span>
                       </div>
                       <div className="flex space-x-2">
@@ -355,7 +290,7 @@ const Dashboard = () => {
                         >
                           View Details
                         </Button>
-                        {(zone.crowdLevel === 'High' || zone.crowdLevel === 'Critical') && (
+                        {(zone.crowdLevel === 'high' || zone.crowdLevel === 'critical') && (
                           <Button 
                             variant="outline" 
                             size="sm" 
@@ -378,7 +313,7 @@ const Dashboard = () => {
                 <CardContent className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                      {zones.filter(z => z.crowdLevel !== 'No data available').length}
+                      {processedZones.length}
                     </div>
                     <div className="text-sm text-blue-600 dark:text-blue-400">Active Zones</div>
                   </div>
@@ -389,7 +324,7 @@ const Dashboard = () => {
                 <CardContent className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-                      {zones.filter(z => z.crowdLevel === 'Low').length}
+                      {processedZones.filter(z => z.crowdLevel === 'Low').length}
                     </div>
                     <div className="text-sm text-green-600 dark:text-green-400">Safe Zones</div>
                   </div>
@@ -400,7 +335,7 @@ const Dashboard = () => {
                 <CardContent className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                      {zones.filter(z => z.crowdLevel === 'Moderate').length}
+                      {processedZones.filter(z => z.crowdLevel === 'medium').length}
                     </div>
                     <div className="text-sm text-yellow-600 dark:text-yellow-400">Moderate Zones</div>
                   </div>
@@ -411,7 +346,7 @@ const Dashboard = () => {
                 <CardContent className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-700 dark:text-red-300">
-                      {zones.filter(z => z.crowdLevel === 'High' || z.crowdLevel === 'Critical').length}
+                      {processedZones.filter(z => z.crowdLevel === 'high' || z.crowdLevel === 'critical').length}
                     </div>
                     <div className="text-sm text-red-600 dark:text-red-400">Alert Zones</div>
                   </div>
@@ -425,8 +360,8 @@ const Dashboard = () => {
       {/* Zone Analytics Modal */}
       {selectedZone && (
         <ZoneAnalytics 
-          zone={zones.find(z => z.id === selectedZone)!}
-          onClose={closeDetails}
+          zone={processedZones.find(z => z.id === selectedZone)!}
+          onClose={() => setSelectedZone(null)}
         />
       )}
 
@@ -434,7 +369,7 @@ const Dashboard = () => {
       {showEmergencyActions && (
         <EmergencyActions 
           zoneId={showEmergencyActions}
-          onClose={closeEmergencyActions}
+          onClose={() => setShowEmergencyActions(null)}
           onAction={handleEmergencyAction}
         />
       )}
@@ -442,7 +377,7 @@ const Dashboard = () => {
       {/* Emergency Logs Modal */}
       {showEmergencyLogs && (
         <EmergencyLogs 
-          logs={emergencyLogs}
+          logs={[]}
           onClose={() => setShowEmergencyLogs(false)}
         />
       )}
